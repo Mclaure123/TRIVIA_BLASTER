@@ -1,0 +1,1134 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>PROTOCOLO CERO // BYTE BLASTER v3.0 - BETA1 ENHANCED</title>
+    <style>
+        :root {
+            --color-background: #0D0221;
+            --color-text: #F0F0F0;
+            --color-neon-cyan: #00FFFF; /* Principal */
+            --color-neon-magenta: #FF00FF; /* Secundario */
+            --color-neon-yellow: #FFFF00; /* Acento / Advertencia */
+            --color-neon-blue: #00BFFF; /* Nuevo azul eléctrico */
+            --color-neon-green: #39FF14; /* Nuevo verde lima */
+            --color-success: #00FF7F;
+            --color-error: #FF4136;
+            --font-main: Consolas, Menlo, Monaco, 'Courier New', monospace;
+        }
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        html, body {
+            width: 100vw;
+            height: 100vh;
+            overflow: hidden;
+            background-color: var(--color-background);
+            color: var(--color-text);
+            font-family: var(--font-main);
+            user-select: none;
+            position: relative;
+            /* Fondo ambiental animado */
+            background-image: 
+                linear-gradient(rgba(0,0,0,0.5) 1px, transparent 1px),
+                linear-gradient(90deg, rgba(0,0,0,0.5) 1px, transparent 1px),
+                radial-gradient(ellipse at center, rgba(13,2,33,0.8) 0%, rgba(13,2,33,1) 70%);
+            background-size: 20px 20px, 20px 20px, 100% 100%;
+            animation: background-move 120s linear infinite; /* Movimiento lento de fondo */
+        }
+        
+        @keyframes background-move {
+            from { background-position: 0 0, 0 0, 0 0; }
+            to { background-position: 100vw 100vh, 100vw 100vh, 0 0; }
+        }
+
+        /* Scanlines - Ahora con z-index más bajo que las pantallas */
+        body::before {
+            content: '';
+            position: absolute;
+            top: 0; left: 0;
+            width: 100%; height: 100%;
+            pointer-events: none;
+            background: repeating-linear-gradient(
+                transparent 0px,
+                transparent 1px,
+                rgba(0, 0, 0, 0.2) 2px,
+                rgba(0, 0, 0, 0.2) 3px
+            );
+            animation: scanlines-anim 8s linear infinite;
+            opacity: 0.1;
+            z-index: 0; /* Z-index BAJO para que esté detrás de las pantallas */
+        }
+        @keyframes scanlines-anim {
+            from { background-position: 0 0; }
+            to { background-position: 0 100%; }
+        }
+
+
+        .screen {
+            position: absolute; 
+            top: 0; left: 0;
+            width: 100%; height: 100%;
+            
+            display: flex; 
+            flex-direction: column; 
+            justify-content: space-between;
+            padding: 3vh 4vw;
+            
+            opacity: 0; 
+            pointer-events: none; 
+            transition: opacity 0.5s ease; 
+            z-index: 1; 
+        }
+
+        .screen.active {
+            opacity: 1; 
+            pointer-events: auto; 
+        }
+
+        /* Zonas de contenido para cada pantalla */
+        .zone-top { display: flex; flex-direction: column; justify-content: flex-start; align-items: center; flex: 1.5; }
+        .zone-middle { display: flex; flex-direction: column; justify-content: center; align-items: center; flex: 7; width: 100%;}
+        .zone-bottom { display: flex; flex-direction: column; justify-content: flex-end; align-items: center; flex: 1.5; }
+
+        .title-large {
+            font-size: clamp(4rem, 12vw, 15vh);
+            text-shadow: 
+                0 0 5px var(--color-text), 
+                0 0 10px var(--color-text), 
+                0 0 20px var(--color-neon-cyan), 
+                0 0 30px var(--color-neon-cyan), 0 0 40px var(--color-neon-cyan),
+                0 0 70px var(--color-neon-cyan);
+            text-align: center;
+            animation: pulse-glow 2s infinite alternate; /* Animación de pulso en el título */
+        }
+        @keyframes pulse-glow {
+            from { text-shadow: 0 0 5px var(--color-text), 0 0 10px var(--color-text), 0 0 20px var(--color-neon-cyan), 0 0 30px var(--color-neon-cyan), 0 0 40px var(--color-neon-cyan); }
+            to { text-shadow: 0 0 8px var(--color-text), 0 0 15px var(--color-text), 0 0 30px var(--color-neon-blue), 0 0 45px var(--color-neon-blue), 0 0 60px var(--color-neon-blue), 0 0 90px var(--color-neon-blue); }
+        }
+
+        .prompt {
+            font-size: clamp(1rem, 4vw, 5vh);
+            text-shadow: 0 0 5px var(--color-neon-magenta), 0 0 10px var(--color-neon-magenta);
+            text-align: center;
+        }
+        
+        .header-text {
+            font-size: clamp(1rem, 3vw, 4vh);
+            text-align: center;
+        }
+
+        /* HUD counter pulse */
+        @keyframes pulse-text-anim {
+            0% { text-shadow: 0 0 5px var(--color-text); }
+            50% { text-shadow: 0 0 10px var(--color-neon-blue), 0 0 20px var(--color-neon-cyan); }
+            100% { text-shadow: 0 0 5px var(--color-text); }
+        }
+        .hud-pulsing {
+            animation: pulse-text-anim 0.4s ease-out;
+        }
+
+        @keyframes blinking-cursor {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0; }
+        }
+        @keyframes text-glitch {
+            0% { transform: translate(0, 0); opacity: 1; }
+            20% { transform: translate(-2px, 2px); opacity: 0.8; }
+            40% { transform: translate(3px, -1px); opacity: 1; }
+            60% { transform: translate(-1px, 1px); opacity: 0.9; }
+            80% { transform: translate(2px, -2px); opacity: 1; }
+            100% { transform: translate(0, 0); opacity: 1; }
+        }
+        .blinking { animation: blinking-cursor 1.5s linear infinite; }
+        .glitching { animation: text-glitch 0.3s linear infinite alternate; }
+        
+        /* BIOS Screen */
+        #bios-log { width: 90%; max-width: 800px; height: 100%; font-size: clamp(0.8rem, 2.5vw, 3vh); text-align: left; overflow: hidden; white-space: pre-wrap; word-break: break-all; }
+        #bios-progress-bar-container { width: 90%; max-width: 800px; height: 4vh; border: 2px solid var(--color-neon-cyan); box-shadow: 0 0 15px var(--color-neon-cyan); }
+        #bios-progress-bar { width: 0%; height: 100%; background-color: var(--color-neon-cyan); transition: width 0.1s linear; }
+
+        /* Name Entry Screen */
+        #name-display { 
+            font-size: clamp(2rem, 8vw, 10vh); 
+            letter-spacing: 0.5em; 
+            margin-bottom: 3vh; 
+            border: 2px solid var(--color-text); 
+            padding: 1vh 2vw; 
+            min-height: 12vh; 
+            text-align: center; 
+            position: relative;
+            overflow: hidden;
+            white-space: nowrap;
+        }
+        /* Cursor for name display - only visible if name not full */
+        #name-display.blinking-cursor-active::after {
+            content: '_';
+            animation: blinking-cursor 1s step-end infinite;
+            position: absolute;
+            top: 50%;
+            right: calc(1vw - 0.5em * clamp(2rem, 8vw, 10vh) / 10); 
+            transform: translateY(-50%);
+        }
+
+        #virtual-keyboard {
+            display: grid;
+            width: 100%;
+            max-width: 900px;
+            aspect-ratio: 2.5 / 1; 
+            grid-template-rows: repeat(3, 1fr); /* 3 FILAS */
+            grid-template-columns: repeat(10, 1fr); /* 10 COLUMNAS estrictas */
+            gap: min(0.8vw, 0.8vh);
+        }
+
+        /* Asignación de posiciones exactas según MATRIX-30 (3x10) */
+        /* CADA TECLA OCUPA 1 UNIDAD EN EL GRID */
+        /* Fila 1: Q, W, E, R, T, Y, U, I, O, BKSP */
+        #key-Q { grid-row: 1; grid-column: 1; } #key-W { grid-row: 1; grid-column: 2; } #key-E { grid-row: 1; grid-column: 3; } 
+        #key-R { grid-row: 1; grid-column: 4; } #key-T { grid-row: 1; grid-column: 5; } #key-Y { grid-row: 1; grid-column: 6; } 
+        #key-U { grid-row: 1; grid-column: 7; } #key-I { grid-row: 1; grid-column: 8; } #key-O { grid-row: 1; grid-column: 9; } 
+        #key-BKSP { grid-row: 1; grid-column: 10; } /* BKSP es la 10ma key de la 1ra fila */
+        
+        /* Fila 2: A, S, D, F, G, H, J, K, L, ENTER */
+        #key-A { grid-row: 2; grid-column: 1; } #key-S { grid-row: 2; grid-column: 2; } #key-D { grid-row: 2; grid-column: 3; } 
+        #key-F { grid-row: 2; grid-column: 4; } #key-G { grid-row: 2; grid-column: 5; } #key-H { grid-row: 2; grid-column: 6; } 
+        #key-J { grid-row: 2; grid-column: 7; } #key-K { grid-row: 2; grid-column: 8; } #key-L { grid-row: 2; grid-column: 9; }
+        #key-ENTER { grid-row: 2; grid-column: 10; } /* ENTER es la 10ma key de la 2da fila */
+
+        /* Fila 3: SHIFT, Z, X, C, V, B, N, M, _, @ */
+        #key-SHIFT { grid-row: 3; grid-column: 1; } /* SHIFT es la 1ra key de la 3ra fila */
+        #key-Z { grid-row: 3; grid-column: 2; } #key-X { grid-row: 3; grid-column: 3; } #key-C { grid-row: 3; grid-column: 4; }
+        #key-V { grid-row: 3; grid-column: 5; } #key-B { grid-row: 3; grid-column: 6; } #key-N { grid-row: 3; grid-column: 7; }
+        #key-M { grid-row: 3; grid-column: 8; } 
+        #key-UND { grid-row: 3; grid-column: 9; } /* Tecla _ */
+        #key-AT { grid-row: 3; grid-column: 10; } /* Tecla @ */
+
+
+        .key { 
+            display: flex; justify-content: center; align-items: center; 
+            border: 2px solid var(--color-neon-magenta); 
+            font-size: clamp(1rem, 2.5vw, 3vh); 
+            cursor: pointer; 
+            transition: all 0.1s ease, box-shadow 0.2s ease; 
+            text-shadow: 0 0 5px var(--color-neon-magenta);
+            box-shadow: 0 0 10px rgba(255,0,255,0.4);
+        }
+        .key:hover { 
+            background-color: var(--color-neon-magenta); 
+            color: var(--color-background); 
+            text-shadow: none;
+            transform: scale(1.02);
+            box-shadow: 0 0 20px var(--color-neon-magenta);
+        }
+        .key.active-press { /* Para la animación de pulsación */
+            transform: scale(0.95);
+            background-color: var(--color-neon-yellow);
+            color: var(--color-background);
+            box-shadow: 0 0 30px var(--color-neon-yellow);
+            transition: all 0.05s ease-out;
+        }
+        
+        #key-SHIFT.active { 
+            background-color: var(--color-neon-blue); /* Color diferente para SHIFT activo */
+            color: var(--color-background); 
+            border-color: var(--color-neon-blue); 
+            box-shadow: 0 0 20px var(--color-neon-blue);
+        }
+
+        /* Level Select Screen */
+        #level-select-container { display: flex; flex-direction: column; justify-content: space-evenly; gap: 2vh; width: 100%; height: 100%; max-width: 800px; }
+        .level-button { 
+            flex: 1; display: flex; flex-direction: column; justify-content: center; align-items: center; 
+            border: 3px solid var(--color-neon-cyan); 
+            font-size: clamp(0.8rem, 2vw, 3vh); cursor: pointer; 
+            transition: all 0.2s ease, box-shadow 0.3s ease; 
+            text-align: center; padding: 1.5vh; 
+            text-shadow: 0 0 5px var(--color-neon-cyan);
+            box-shadow: 0 0 15px rgba(0,255,255,0.4);
+        }
+        .level-button:hover { 
+            background-color: var(--color-neon-cyan); 
+            color: var(--color-background); 
+            text-shadow: none; 
+            transform: translateY(-5px) scale(1.01);
+            box-shadow: 0 0 30px var(--color-neon-cyan), 0 0 60px rgba(0,255,255,0.6);
+        }
+        .level-button h2 { font-size: clamp(1.2rem, 3.5vw, 4.5vh); margin-bottom: 0.5vh; }
+
+        /* Game Screen */
+        #gameScreen .zone-top { flex: 1.5; }
+        #gameScreen .zone-middle { flex: 5; }
+        #gameScreen .zone-bottom { flex: 3.5; }
+        
+        #hud { display: flex; justify-content: space-between; width: 100%; font-size: clamp(1rem, 3vw, 4vh); }
+        /* Timer bar colors/animations */
+        #timer-bar-container { width: 100%; height: 2vh; border: 2px solid var(--color-neon-yellow); margin-top: 1vh; box-shadow: 0 0 10px var(--color-neon-yellow); }
+        #timer-bar { width: 100%; height: 100%; background-color: var(--color-neon-yellow); }
+        /* Critical timer animation */
+        @keyframes timer-pulse {
+            0%, 100% { box-shadow: 0 0 15px var(--color-error); }
+            50% { box-shadow: 0 0 30px var(--color-error), 0 0 60px rgba(255,0,0,0.4); }
+        }
+        #timer-bar-container.critical {
+            border-color: var(--color-error);
+            animation: timer-pulse 0.5s linear infinite;
+        }
+        #timer-bar.critical {
+            background-color: var(--color-error);
+        }
+
+
+        #question-container { font-size: clamp(1.5rem, 5vw, 7vh); text-align: center; }
+        #options-container { display: grid; grid-template-columns: 1fr 1fr; grid-template-rows: 1fr 1fr; gap: min(2vw, 2vh); width: 100%; height: 100%; }
+        .option-button { 
+            display: flex; justify-content: center; align-items: center; 
+            border: 2px solid var(--color-neon-magenta); 
+            padding: 2vh 2vw; 
+            font-size: clamp(1.2rem, 3.5vw, 5vh); text-align: center; cursor: pointer; 
+            transition: all 0.1s ease, box-shadow 0.2s ease; 
+            text-shadow: 0 0 5px var(--color-neon-magenta);
+            box-shadow: 0 0 10px rgba(255,0,255,0.4);
+        }
+        .option-button:hover { 
+            background-color: var(--color-neon-magenta); 
+            color: var(--color-background); 
+            text-shadow: none; 
+            transform: scale(1.02);
+            box-shadow: 0 0 20px var(--color-neon-magenta);
+        }
+
+        /* Feedback Overlay */
+        #feedback-overlay {
+            display: none;
+            position: absolute;
+            top: 0; left: 0;
+            width: 100%; height: 100%;
+            background-color: rgba(13, 2, 33, 0.95);
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            text-align: center;
+            padding: 5vw;
+            z-index: 1000;
+            cursor: pointer;
+            animation: overlay-appear 0.3s ease-out;
+        }
+        @keyframes overlay-appear {
+            from { opacity: 0; transform: scale(0.9); }
+            to { opacity: 1; transform: scale(1); }
+        }
+
+        #feedback-status {
+            font-size: clamp(2rem, 7vw, 9vh);
+            margin-bottom: 3vh;
+            text-shadow: 0 0 10px; /* Será colorizado por JS */
+            animation: text-glitch 0.2s linear infinite alternate;
+        }
+        #feedback-explanation {
+            font-size: clamp(1rem, 3.5vw, 4.5vh);
+            line-height: 1.4;
+            margin-bottom: 5vh;
+            max-width: 800px;
+            text-shadow: 0 0 5px var(--color-text);
+        }
+        #feedback-prompt {
+            font-size: clamp(1rem, 4vw, 5vh);
+            text-shadow: 0 0 5px var(--color-neon-magenta), 0 0 10px var(--color-neon-magenta);
+            animation: blink 1.5s linear infinite, text-glitch 0.5s linear infinite alternate;
+        }
+        
+        /* System Error Glitch Overlay */
+        @keyframes error-glitch-effect {
+            0% { transform: translate(0, 0); filter: saturate(1) brightness(1); }
+            25% { transform: translate(2px, -2px); filter: saturate(1.5) brightness(1.2); }
+            50% { transform: translate(-3px, 3px); filter: saturate(0.5) brightness(0.8); }
+            75% { transform: translate(1px, -1px); filter: saturate(1.3) brightness(1.1); }
+            100% { transform: translate(0, 0); filter: saturate(1) brightness(1); }
+        }
+        #system-error-glitch-overlay {
+            position: absolute;
+            top: 0; left: 0;
+            width: 100%; height: 100%;
+            background-image: linear-gradient(rgba(255,0,0,0.1) 1px, transparent 1px),
+                              linear-gradient(90deg, rgba(255,0,0,0.1) 1px, transparent 1px);
+            background-size: 5px 5px, 5px 5px;
+            pointer-events: none;
+            opacity: 0;
+            transition: opacity 0.1s ease-out;
+            z-index: 1001; /* encima del feedback overlay pero debajo de transition overlay */
+        }
+        #system-error-glitch-overlay.active {
+            opacity: 0.5;
+            animation: error-glitch-effect 0.2s linear 3; /* Play 3 times quickly */
+        }
+
+
+        /* End Screen */
+        .final-score { 
+            font-size: clamp(1.5rem, 5vw, 6vh); margin: 5vh 0; 
+            text-shadow: 0 0 10px var(--color-neon-yellow), 0 0 20px var(--color-neon-yellow); 
+            animation: score-pulse 1.5s infinite alternate;
+        }
+        @keyframes score-pulse {
+            from { text-shadow: 0 0 10px var(--color-neon-yellow); }
+            to { text-shadow: 0 0 15px var(--color-neon-yellow), 0 0 30px var(--color-neon-yellow); }
+        }
+
+        #end-options { display: flex; flex-direction: column; gap: 3vh; }
+        .end-button { 
+            border: 2px solid var(--color-text); padding: 2vh 4vw; 
+            font-size: clamp(1rem, 3vw, 4vh); cursor: pointer; text-align: center; 
+            transition: all 0.2s ease, box-shadow 0.3s ease;
+            text-shadow: 0 0 5px var(--color-text);
+            box-shadow: 0 0 10px rgba(255,255,255,0.3);
+        }
+        .end-button:hover { 
+            background-color: var(--color-text); 
+            color: var(--color-background); 
+            text-shadow: none; 
+            transform: scale(1.02);
+            box-shadow: 0 0 20px var(--color-text), 0 0 40px rgba(255,255,255,0.6);
+        }
+
+        /* Leaderboard styles */
+        #leaderboard-container {
+            width: 80%;
+            max-width: 600px;
+            margin-top: 5vh;
+            border: 2px solid var(--color-neon-cyan);
+            padding: 2vh;
+            text-align: left;
+            font-size: clamp(0.8rem, 2vw, 3vh);
+            box-shadow: 0 0 15px rgba(0,255,255,0.4);
+        }
+        #leaderboard-container h3 {
+            text-align: center;
+            color: var(--color-neon-cyan);
+            text-shadow: 0 0 5px var(--color-neon-cyan);
+            margin-bottom: 2vh;
+        }
+        .leaderboard-entry {
+            display: flex;
+            justify-content: space-between;
+            padding: 1vh 0;
+            border-bottom: 1px dotted rgba(255,255,255,0.2);
+        }
+        .leaderboard-entry:last-child {
+            border-bottom: none;
+        }
+        .leaderboard-rank { width: 15%; text-align: left; color: var(--color-neon-yellow);}
+        .leaderboard-name { width: 60%; text-align: left; }
+        .leaderboard-score { width: 25%; text-align: right; color: var(--color-neon-green); }
+
+
+        /* Global Flash Animations */
+        @keyframes correct-flash { from { filter: brightness(2.0); background-color: var(--color-success); } to { filter: brightness(1.0); background-color: var(--color-background); } }
+        @keyframes incorrect-flash { from { filter: brightness(2.0); background-color: var(--color-error); } to { filter: brightness(1.0); background-color: var(--color-background); } }
+        .correct-flash-anim { animation: correct-flash 0.3s ease; }
+        .incorrect-flash-anim { animation: incorrect-flash 0.3s ease; }
+
+        /* Transition Overlay */
+        #transition-overlay {
+            position: absolute;
+            top: 0; left: 0;
+            width: 100vw; height: 100vh;
+            background-color: rgba(0,0,0,0.9);
+            z-index: 2000; /* Asegura que esté por encima de todo */
+            display: none; 
+            justify-content: center;
+            align-items: center;
+            font-size: clamp(2rem, 8vw, 10vh);
+            color: var(--color-neon-blue);
+            text-shadow: 0 0 15px var(--color-neon-blue);
+        }
+        #transition-overlay.active {
+            animation: glitch-transition 0.5s ease-out; 
+        }
+
+        @keyframes glitch-transition {
+            0% { transform: scale(1); opacity: 0; filter: blur(0px); }
+            25% { opacity: 1; transform: scale(1.05); filter: blur(2px); background-color: rgba(0,0,0,0.9); }
+            50% { transform: scale(0.95); filter: blur(1px); background-color: rgba(0,0,0,0.8); }
+            75% { transform: scale(1.02); filter: blur(2px); background-color: rgba(0,0,0,0.95); }
+            100% { opacity: 0; transform: scale(1); filter: blur(0px); }
+        }
+        
+    </style>
+</head>
+<body>
+
+    <!-- 1. BIOS Screen -->
+    <div id="biosScreen" class="screen">
+        <div class="zone-top"><h1 class="header-text">[SISTEMA DE INTERFAZ NEURAL v3.1]</h1></div>
+        <div class="zone-middle"><pre id="bios-log"></pre></div>
+        <div class="zone-bottom"><div id="bios-progress-bar-container"><div id="bios-progress-bar"></div></div></div>
+    </div>
+
+    <!-- 2. Title Screen -->
+    <div id="titleScreen" class="screen">
+        <div class="zone-top"><p class="header-text">PROTOCOLO CERO</p></div>
+        <div class="zone-middle"><h1 class="title-large">BYTE BLASTER</h1></div>
+        <div class="zone-bottom"><p class="prompt blinking">[ HAZ CLIC PARA ENTRAR ]</p></div>
+    </div>
+
+    <!-- 3. Name Entry Screen -->
+    <div id="nameScreen" class="screen">
+        <div class="zone-top"><p class="header-text">> REGISTRO DE PILOTO</p></div>
+        <div class="zone-middle">
+            <div id="name-display" class="blinking-cursor-active"></div>
+            <div id="virtual-keyboard"></div>
+        </div>
+        <div class="zone-bottom"><p class="prompt">// INTRODUCE TU IDENTIFICADOR (3-8 CARACTERES)</p></div>
+    </div>
+
+    <!-- 4. Level Select Screen -->
+    <div id="levelSelectScreen" class="screen">
+        <div class="zone-top"><p class="header-text" id="level-select-header"></p></div>
+        <div class="zone-middle">
+            <div id="level-select-container">
+                <div class="level-button" data-difficulty="easy"><h2>MISIÓN: ACADEMIA</h2><p>(BÁSICO)</p></div>
+                <div class="level-button" data-difficulty="medium"><h2>MISIÓN: CORPORATIVA</h2><p>(INTERMEDIO)</p></div>
+                <div class="level-button" data-difficulty="hard"><h2>MISIÓN: AVANZADA</h2><p>(COMPLEJO)</p></div>
+                <div class="level-button" data-difficulty="advanced"><h2>MISIÓN: INTEGRACIÓN</h2><p>(PROFESIONAL)</p></div>
+                <div class="level-button" data-difficulty="expert"><h2>MISIÓN: CUANTUM</h2><p>(ÉLITE)</p></div>
+            </div>
+        </div>
+        <div class="zone-bottom"><p class="prompt">// SELECCIONA TU OBJETIVO</p></div>
+    </div>
+
+    <!-- 5. Game Screen -->
+    <div id="gameScreen" class="screen">
+        <div class="zone-top">
+            <div id="hud"><span id="hud-player"></span><span id="hud-score"></span></div>
+            <div id="timer-bar-container"><div id="timer-bar"></div></div>
+        </div>
+        <div class="zone-middle"><h2 id="question-container"></h2></div>
+        <div class="zone-bottom"><div id="options-container"></div></div>
+
+        <!-- Feedback Overlay -->
+        <div id="feedback-overlay">
+            <h2 id="feedback-status"></h2>
+            <p id="feedback-explanation"></p>
+            <p id="feedback-prompt" class="blinking">[ CLIC PARA CONTINUAR ]</p>
+        </div>
+
+        <!-- System Error Glitch Overlay -->
+        <div id="system-error-glitch-overlay"></div>
+    </div>
+    
+    <!-- 6. End Screen -->
+    <div id="endScreen" class="screen">
+        <div class="zone-top"><h1 id="end-title" class="title-large"></h1></div>
+        <div class="zone-middle">
+            <p class="final-score" id="final-score-text"></p>
+            <p class="final-score" id="pilot-rank-text"></p>
+            <div id="leaderboard-container">
+                <h3>MEJORES PILOTOS</h3>
+                <div id="leaderboard-list"></div>
+            </div>
+        </div>
+        <div class="zone-bottom"><div id="end-options"><div id="retry-button" class="end-button">[ REINTENTAR MISIÓN ]</div><div id="menu-button" class="end-button">[ SELECCIONAR OTRA MISIÓN ]</div></div></div>
+    </div>
+
+    <!-- Global Transition Overlay -->
+    <div id="transition-overlay"></div>
+
+    <script>
+        const DOM = {
+            body: document.body,
+            screens: document.querySelectorAll('.screen'),
+            biosLog: document.getElementById('bios-log'),
+            biosProgressBar: document.getElementById('bios-progress-bar'),
+            titleScreen: document.getElementById('titleScreen'),
+            nameDisplay: document.getElementById('name-display'),
+            virtualKeyboard: document.getElementById('virtual-keyboard'),
+            levelSelectHeader: document.getElementById('level-select-header'),
+            levelButtons: document.querySelectorAll('.level-button'),
+            hudPlayer: document.getElementById('hud-player'),
+            hudScore: document.getElementById('hud-score'),
+            timerBarContainer: document.getElementById('timer-bar-container'),
+            timerBar: document.getElementById('timer-bar'),
+            questionContainer: document.getElementById('question-container'),
+            optionsContainer: document.getElementById('options-container'),
+            feedbackOverlay: document.getElementById('feedback-overlay'),
+            feedbackStatus: document.getElementById('feedback-status'),
+            feedbackExplanation: document.getElementById('feedback-explanation'),
+            feedbackPrompt: document.getElementById('feedback-prompt'),
+            systemErrorGlitchOverlay: document.getElementById('system-error-glitch-overlay'),
+            endTitle: document.getElementById('end-title'),
+            finalScoreText: document.getElementById('final-score-text'),
+            pilotRankText: document.getElementById('pilot-rank-text'),
+            leaderboardContainer: document.getElementById('leaderboard-container'),
+            leaderboardList: document.getElementById('leaderboard-list'),
+            retryButton: document.getElementById('retry-button'),
+            menuButton: document.getElementById('menu-button'),
+            transitionOverlay: document.getElementById('transition-overlay'),
+        };
+
+        const gameState = {
+            playerName: '',
+            difficulty: '',
+            score: 0,
+            currentQuestionIndex: 0,
+            questions: [], 
+            timerInterval: null,
+            timerWarningInterval: null, // New: for timer bar pulse
+            isShiftActive: true, 
+            timePerQuestion: 15000, 
+            questionsPerGame: 10, 
+        };
+
+        // --- DATABASE DE PREGUNTAS AMPLIADA (15+ por nivel) ---
+        const quizData = [
+            // --- Easy Level (15 Questions) ---
+            { q: "¿Qué unidad es más grande?", o: ["1 Kilobyte", "1 Megabyte", "1 Gigabyte", "1 Terabyte"], a: 3, d: "easy", explanation: "Un Terabyte (TB) es la unidad más grande, seguido de Gigabyte (GB), Megabyte (MB) y Kilobyte (KB). 1 TB = 1024 GB." },
+            { q: "Un Byte equivale a...", o: ["8 bits", "4 bits", "16 bits", "1 bit"], a: 0, d: "easy", explanation: "Un Byte es la unidad básica de información digital y está compuesta por 8 bits." },
+            { q: "¿Qué significa 'KB'?", o: ["Kilo Bit", "Kilo Byte", "Kilo Banda", "Kilo Base"], a: 1, d: "easy", explanation: "KB significa Kilobyte, que equivale aproximadamente a mil Bytes (1024 Bytes)." },
+            { q: "¿Qué se mide en 'Terabytes'?", o: ["Velocidad de internet", "Capacidad de almacenamiento", "Frecuencia del procesador", "Resolución de pantalla"], a: 1, d: "easy", explanation: "Los Terabytes (TB) son una unidad de medida de capacidad de almacenamiento, comúnmente usada para discos duros grandes." },
+            { q: "¿Cuál es el componente de almacenamiento principal de un teléfono móvil?", o: ["Tarjeta SD", "RAM", "ROM/Flash", "CPU"], a: 2, d: "easy", explanation: "Los teléfonos móviles utilizan memoria Flash (ROM) para almacenar el sistema operativo y las aplicaciones de forma permanente." },
+            { q: "¿Qué tipo de almacenamiento pierde su información al apagar el ordenador?", o: ["Disco Duro", "Memoria USB", "RAM", "SSD"], a: 2, d: "easy", explanation: "La memoria RAM (Random Access Memory) es volátil, lo que significa que su contenido se borra al apagar el equipo." },
+            { q: "¿Cuál de estos NO es un medio de almacenamiento físico?", o: ["CD", "Disco Duro", "Nube", "USB"], a: 2, d: "easy", explanation: "La 'Nube' (Cloud Storage) es almacenamiento remoto a través de internet, no un dispositivo físico que poseas." },
+            { q: "¿Cómo se abrevia 'Gigabyte'?", o: ["GB", "Gb", "GByte", "Gbit"], a: 0, d: "easy", explanation: "La abreviatura estándar para Gigabyte es GB. 'Gb' se refiere a Gigabits." },
+            { q: "¿Cuál es la unidad más pequeña de información digital?", o: ["Byte", "Bit", "Kilobyte", "Megabit"], a: 1, d: "easy", explanation: "Un bit es la unidad más fundamental de información, representando un 0 o un 1." },
+            { q: "¿Un disco duro se considera almacenamiento...?", o: ["Volátil", "Primario", "Secundario", "Temporal"], a: 2, d: "easy", explanation: "Los discos duros son almacenamiento secundario, que es no volátil y guarda datos a largo plazo." },
+            { q: "¿Qué es un 'backup'?", o: ["Una copia de seguridad de datos", "Un tipo de archivo de texto", "Un virus informático", "Una forma de formatear un disco"], a: 0, d: "easy", explanation: "Un backup es una copia de seguridad de tus archivos para recuperarlos en caso de pérdida o daño." },
+            { q: "¿Qué significa 'USB'?", o: ["Universal Serial Bus", "Unidad de Sistema Básico", "Usuario de Súper Banda", "Útil de Software Básico"], a: 0, d: "easy", explanation: "USB (Universal Serial Bus) es un estándar de conexión para dispositivos periféricos y almacenamiento." },
+            { q: "¿Cuál de estos es un tipo de memoria flash?", o: ["HDD", "SSD", "RAM", "CD-ROM"], a: 1, d: "easy", explanation: "SSD (Solid State Drive) utiliza memoria flash para almacenar datos." },
+            { q: "¿Un pendrive es un ejemplo de qué tipo de almacenamiento?", o: ["Magnético", "Óptico", "Flash", "Volátil"], a: 2, d: "easy", explanation: "Los pendrives (memorias USB) utilizan memoria flash, que es no volátil y portátil." },
+            { q: "¿Qué es un 'formateo' de disco?", o: ["Un programa para buscar virus", "La preparación de un disco para almacenar datos", "Una forma de comprimir archivos", "El proceso de copiar un disco"], a: 1, d: "easy", explanation: "Formatear un disco lo prepara para almacenar nuevos datos, borrando los datos existentes y creando un sistema de archivos." },
+
+            // --- Medium Level (15 Questions) ---
+            { q: "¿Qué medio de almacenamiento usa un láser para leer datos?", o: ["Diskette 3.5\"", "CD-ROM", "Disco Duro (HDD)", "Cinta Magnética"], a: 1, d: "medium", explanation: "Los CD-ROMs, DVDs y Blu-ray Discs son medios ópticos que utilizan láseres para leer y/o escribir datos." },
+            { q: "Un DVD estándar de una capa tiene una capacidad de...", o: ["700 MB", "1.44 MB", "4.7 GB", "25 GB"], a: 2, d: "medium", explanation: "Un DVD de una sola capa tiene una capacidad nominal de 4.7 Gigabytes." },
+            { q: "La 'S' en 'SSD' significa...", o: ["Sólido", "Sistema", "Seguro", "Súper"], a: 0, d: "medium", explanation: "SSD significa Solid State Drive (Unidad de Estado Sólido), indicando que no tiene partes móviles." },
+            { q: "¿Qué tipo de disco duro no tiene partes móviles?", o: ["HDD", "SSD", "Floppy Disk", "ZIP Drive"], a: 1, d: "medium", explanation: "Los SSDs (Solid State Drives) usan chips de memoria flash, mientras que los HDDs, Floppy y ZIP drives son mecánicos." },
+            { q: "¿En qué se mide la velocidad de un disco duro tradicional?", o: ["RPM", "GHz", "Mbps", "Voltios"], a: 0, d: "medium", explanation: "La velocidad de rotación de los platos en un HDD se mide en Revoluciones Por Minuto (RPM)." },
+            { q: "¿Qué capacidad tenía típicamente un diskette de 3.5 pulgadas?", o: ["720 KB", "1.44 MB", "2.88 MB", "100 MB"], a: 1, d: "medium", explanation: "El diskette de 3.5 pulgadas más común tenía una capacidad de 1.44 Megabytes." },
+            { q: "¿Qué es un 'píxel' en términos de almacenamiento de imágenes?", o: ["Un tipo de archivo", "Una unidad de medida de color", "La unidad más pequeña de una imagen digital", "Una cámara digital"], a: 2, d: "medium", explanation: "Un píxel es el punto más pequeño en una imagen digital que puede mostrar un color." },
+            { q: "¿Qué es más rápido para el acceso aleatorio de datos?", o: ["Cinta magnética", "Disco Duro (HDD)", "SSD", "CD-R"], a: 2, d: "medium", explanation: "Los SSDs ofrecen velocidades de acceso aleatorio significativamente más rápidas que los HDDs o cintas." },
+            { q: "¿Cuál es el propósito principal de un 'buffer' o 'caché' en un disco duro?", o: ["Proteger los datos", "Almacenar temporalmente los datos para acceso rápido", "Refrigerar el disco", "Aumentar la capacidad"], a: 1, d: "medium", explanation: "El buffer o caché almacena datos de uso frecuente para acelerar su lectura o escritura." },
+            { q: "¿Qué tecnología precede a los discos Blu-ray?", o: ["DVD", "USB", "SSD", "Cinta de cartucho"], a: 0, d: "medium", explanation: "El DVD (Digital Versatile Disc) fue el formato óptico estándar antes de la llegada del Blu-ray." },
+            { q: "¿Cuál es la función principal del 'firmware' en un dispositivo de almacenamiento?", o: ["Almacenar los datos del usuario", "Controlar el hardware del dispositivo", "Actuar como sistema operativo", "Proteger contra virus"], a: 1, d: "medium", explanation: "El firmware es el software de bajo nivel que controla el funcionamiento interno de un dispositivo de hardware." },
+            { q: "¿Qué es un archivo comprimido (.zip, .rar)?", o: ["Un archivo dañado", "Un archivo de sistema", "Un archivo cuyo tamaño ha sido reducido", "Un archivo de audio"], a: 2, d: "medium", explanation: "Los archivos comprimidos son colecciones de datos cuyo tamaño se ha reducido para ahorrar espacio o para una transferencia más rápida." },
+            { q: "¿Cuál de estos no es un conector de disco duro?", o: ["SATA", "IDE/PATA", "PCIe", "HDMI"], a: 3, d: "medium", explanation: "HDMI es un conector para audio y video; SATA, IDE/PATA y PCIe son para almacenamiento." },
+            { q: "¿Qué significa 'NVMe' en un SSD?", o: ["Non-Volatile Memory Express", "New Velocity Media Engine", "Network Virtual Memory Extension", "Next-Gen Volume Management"], a: 0, d: "medium", explanation: "NVMe es una especificación que permite a los SSDs aprovechar el bus PCIe para un rendimiento mucho más rápido." },
+            { q: "¿Qué es un 'sector' en un disco duro?", o: ["Un área dañada del disco", "Una unidad lógica de almacenamiento en un disco", "El plato giratorio del disco", "El cabezal de lectura/escritura"], a: 1, d: "medium", explanation: "Un sector es la unidad más pequeña de almacenamiento físico en un disco duro o diskette." },
+
+            // --- Hard Level (15 Questions) ---
+            { q: "La interfaz más rápida para un SSD de consumidor es...", o: ["SATA III", "USB 3.0", "NVMe PCIe 4.0", "Thunderbolt 2"], a: 2, d: "hard", explanation: "NVMe PCIe 4.0 ofrece velocidades de transferencia de datos significativamente superiores a las otras interfaces mencionadas." },
+            { q: "Un archivo de 2048 KB, ¿cuántos MB son?", o: ["2 MB", "20 MB", "0.2 MB", "200 MB"], a: 0, d: "hard", explanation: "1 MB = 1024 KB. Por lo tanto, 2048 KB / 1024 KB/MB = 2 MB." },
+            { q: "La memoria RAM es un tipo de almacenamiento...", o: ["Permanente", "Secuencial", "Óptico", "Volátil"], a: 3, d: "hard", explanation: "La RAM es volátil, lo que significa que requiere energía constante para mantener la información." },
+            { q: "¿Cuál es el sucesor del DVD y Blu-ray?", o: ["CD-R", "HD DVD", "UHD Blu-ray", "Disco Holográfico"], a: 2, d: "hard", explanation: "UHD Blu-ray (Ultra High Definition Blu-ray) es el formato de disco óptico de última generación para contenido 4K." },
+            { q: "¿Qué tipo de arreglo de discos mejora la redundancia y el rendimiento?", o: ["JBOD", "RAID", "FAT32", "NTFS"], a: 1, d: "hard", explanation: "RAID (Redundant Array of Independent Disks) es una tecnología que combina múltiples discos para mejorar el rendimiento, la redundancia o ambos." },
+            { q: "¿Cuál es el estándar de interfaz para conectar discos duros internos más antiguo entre SATA y PATA?", o: ["SATA", "PATA", "SCSI", "IDE"], a: 1, d: "hard", explanation: "PATA (Parallel ATA), también conocido como IDE, es el estándar más antiguo. SATA (Serial ATA) es su sucesor." },
+            { q: "¿Qué término describe el proceso de borrar datos de un medio de forma que no puedan ser recuperados?", o: ["Formateo", "Desfragmentación", "Borrado seguro", "Clonación"], a: 2, d: "hard", explanation: "El borrado seguro utiliza algoritmos para sobrescribir los datos varias veces, impidiendo su recuperación." },
+            { q: "¿Qué se utiliza para la preservación a largo plazo de grandes volúmenes de datos archivados?", o: ["Disco flash USB", "Cinta magnética LTO", "Discos SSD", "Discos duros externos"], a: 1, d: "hard", explanation: "Las cintas magnéticas LTO (Linear Tape-Open) son rentables para el archivo de grandes cantidades de datos a largo plazo." },
+            { q: "¿Qué capacidad de disco se consideraría 'terabyte-scale'?", o: ["100 GB", "500 GB", "1 TB", "50 MB"], a: 2, d: "hard", explanation: "Terabyte-scale se refiere a capacidades en el rango de los Terabytes, siendo 1 TB el punto de partida." },
+            { q: "¿Qué se utiliza para almacenar el firmware de un ordenador?", o: ["RAM", "BIOS/UEFI (Flash)", "HDD", "SSD"], a: 1, d: "hard", explanation: "El firmware de una computadora (BIOS/UEFI) se almacena en un chip de memoria flash no volátil en la placa base." },
+            { q: "¿Qué tipo de partición se usa comúnmente en sistemas operativos Windows para discos de arranque?", o: ["GPT", "MBR", "EXT4", "APFS"], a: 1, d: "hard", explanation: "MBR (Master Boot Record) ha sido el esquema de particionamiento tradicional en Windows, aunque GPT es más moderno." },
+            { q: "¿Qué tecnología RAID ofrece redundancia y mejora el rendimiento sin sacrificar demasiada capacidad?", o: ["RAID 0", "RAID 1", "RAID 5", "RAID 10"], a: 2, d: "hard", explanation: "RAID 5 distribuye los datos y la paridad en todos los discos, ofreciendo un buen equilibrio entre rendimiento, redundancia y uso de la capacidad." },
+            { q: "¿Qué es la 'fragmentación' de un disco?", o: ["La división física de un disco", "La dispersión de archivos en bloques no contiguos", "Un tipo de error de disco", "El borrado de un disco"], a: 1, d: "hard", explanation: "La fragmentación ocurre cuando un archivo se almacena en varias piezas no consecutivas en el disco, lo que ralentiza el acceso." },
+            { q: "¿Qué sistema de archivos es nativo de los sistemas operativos Linux?", o: ["NTFS", "FAT32", "HFS+", "Ext4"], a: 3, d: "hard", explanation: "Ext4 (Fourth Extended Filesystem) es el sistema de archivos por defecto en muchas distribuciones de Linux." },
+            { q: "¿Cuál es la principal característica de la memoria ROM (Read-Only Memory)?", o: ["Se puede escribir y borrar ilimitadamente", "Es volátil", "Los datos son permanentes y no se pueden modificar fácilmente", "Es extremadamente rápida"], a: 2, d: "hard", explanation: "ROM almacena datos que no necesitan ser modificados o solo se modifican con fines especiales." },
+
+            // --- Advanced Level (15 Questions) ---
+            { q: "¿Qué tipo de arreglo de discos combina múltiples discos para mejorar la redundancia y el rendimiento?", o: ["RAID", "JBOD", "FAT32", "APFS"], a: 0, d: "advanced", explanation: "RAID (Redundant Array of Independent Disks) es una tecnología que distribuye o replica datos en varios discos duros." },
+            { q: "¿Cuál es la principal desventaja del almacenamiento en la nube frente al almacenamiento local?", o: ["Costo", "Capacidad limitada", "Dependencia de conexión a internet", "Lentitud"], a: 2, d: "advanced", explanation: "El almacenamiento en la nube requiere una conexión a internet activa y estable para acceder a los datos." },
+            { q: "¿Qué tecnología permite a un SSD usar una pequeña cantidad de RAM para acelerar operaciones de escritura?", o: ["SLC Caching", "DRAM Cache", "QLC Memory", "HBM"], a: 1, d: "advanced", explanation: "Muchos SSDs utilizan una caché DRAM para mejorar el rendimiento, especialmente en escrituras aleatorias." },
+            { q: "¿Qué unidad de medida se usa comúnmente para la tasa de transferencia de datos en redes de alta velocidad?", o: ["KB/s", "MB/s", "Gbps", "GHz"], a: 2, d: "advanced", explanation: "Gbps (Gigabits por segundo) es la unidad estándar para medir el ancho de banda de redes de alta velocidad." },
+            { q: "¿Qué es un SAN en el contexto de almacenamiento empresarial?", o: ["Sistema de Almacenamiento Natural", "Storage Area Network", "Servidor de Archivos Normal", "Sistema de Acceso de Red"], a: 1, d: "advanced", explanation: "SAN (Storage Area Network) es una red dedicada que proporciona acceso a almacenamiento a nivel de bloque para servidores." },
+            { q: "¿Cuál es el propósito de un archivo de paginación ('paging file') o 'swap file' en un SO?", o: ["Almacenar archivos temporales", "Extender la memoria RAM al disco duro", "Guardar copias de seguridad", "Optimizar la velocidad de la CPU"], a: 1, d: "advanced", explanation: "Cuando la RAM está llena, el sistema operativo usa espacio en el disco duro como memoria virtual (swap/paging file)." },
+            { q: "¿Qué técnica se usa para asegurar que los datos no se corrompan durante la transmisión o almacenamiento?", o: ["Compresión", "Cifrado", "Checksum / Paridad", "Fragmentación"], a: 2, d: "advanced", explanation: "Checksums y bits de paridad se usan para detectar (y a veces corregir) errores de datos." },
+            { q: "¿Qué significa la sigla NAS en almacenamiento de datos?", o: ["Network Attached Storage", "Nearline Archive System", "Neural Access Server", "New Archiving Standard"], a: 0, d: "advanced", explanation: "NAS (Network Attached Storage) es un dispositivo de almacenamiento conectado a una red que permite el acceso a múltiples usuarios." },
+            { q: "¿Cuál es la principal diferencia entre almacenamiento primario y secundario?", o: ["Tamaño", "Costo", "Velocidad y volatilidad", "Fabricante"], a: 2, d: "advanced", explanation: "El almacenamiento primario (RAM) es más rápido y volátil; el secundario (HDD, SSD) es más lento pero no volátil." },
+            { q: "¿Qué tipo de celda NAND se considera la más rápida y duradera para SSDs?", o: ["QLC", "TLC", "MLC", "SLC"], a: 3, d: "advanced", explanation: "SLC (Single-Level Cell) es la más rápida y duradera, almacenando 1 bit por celda, pero también la más cara y de menor densidad." },
+            { q: "¿Cuál es el propósito de la 'controladora de disco' en un sistema informático?", o: ["Gestionar el acceso a internet", "Controlar la CPU", "Mediar entre el CPU y el disco de almacenamiento", "Gestionar la pantalla"], a: 2, d: "advanced", explanation: "La controladora de disco es el hardware que permite la comunicación entre la CPU y el dispositivo de almacenamiento." },
+            { q: "¿Qué es la 'desfragmentación' de un disco duro?", o: ["Un proceso para crear copias de seguridad", "Organizar los archivos para que estén en bloques contiguos", "Eliminar archivos duplicados", "Formatear el disco"], a: 1, d: "advanced", explanation: "La desfragmentación mejora el rendimiento del HDD reorganizando los archivos dispersos en bloques contiguos." },
+            { q: "¿Qué factor es más crítico para la durabilidad de un SSD?", o: ["Temperatura", "Ciclos de escritura/borrado (P/E cycles)", "Humedad", "Velocidad de lectura"], a: 1, d: "advanced", explanation: "La vida útil de las celdas flash de un SSD se mide en ciclos de programación/borrado (P/E cycles)." },
+            { q: "¿Qué es un 'hot-swap' en un sistema de almacenamiento?", o: ["Un reinicio rápido del sistema", "La capacidad de reemplazar un componente sin apagar el sistema", "Un método de cifrado de datos", "Una prueba de estrés para discos"], a: 1, d: "advanced", explanation: "Hot-swap permite añadir o quitar componentes (como discos) sin interrumpir el funcionamiento del sistema." },
+            { q: "¿Qué sistema de archivos es optimizado para sistemas operativos Apple (macOS)?", o: ["NTFS", "FAT32", "APFS", "Ext4"], a: 2, d: "advanced", explanation: "APFS (Apple File System) es el sistema de archivos predeterminado para macOS, iOS, tvOS y watchOS." },
+
+            // --- Expert Level (15 Questions) ---
+            { q: "¿Qué protocolo se utiliza comúnmente para conectar dispositivos de almacenamiento Fibre Channel en un SAN?", o: ["iSCSI", "NFS", "SMB", "FC-NVMe"], a: 3, d: "expert", explanation: "FC-NVMe permite que el protocolo NVMe de alta velocidad se ejecute sobre redes Fibre Channel en un SAN." },
+            { q: "¿Qué tecnología de almacenamiento se basa en los cambios de fase de un material para guardar datos, prometiendo alta velocidad y no volatilidad?", o: ["PCM (Phase-change memory)", "MRAM", "FeRAM", "RRAM"], a: 0, d: "expert", explanation: "PCM utiliza un material que puede cambiar entre estados amorfos y cristalinos para representar datos." },
+            { q: "¿Qué es el comando 'TRIM' en un SSD y por qué es importante?", o: ["Asegura la encriptación de datos", "Formatea el disco para usarlo", "Informa al SO bloques no usados para optimizar rendimiento", "Realiza un chequeo de errores"], a: 2, d: "expert", explanation: "TRIM ayuda al SSD a gestionar eficientemente el espacio libre, lo que mejora el rendimiento y prolonga la vida útil." },
+            { q: "¿Qué tipo de error en un disco duro es detectable pero no corregible por ECC y puede llevar a pérdida de datos?", o: ["Soft error", "Hard error", "Unrecoverable read error", "Write error"], a: 2, d: "expert", explanation: "Un error de lectura irrecuperable (Unrecoverable Read Error) significa que los datos no pueden ser leídos o reconstruidos." },
+            { q: "¿Qué significa el concepto de 'Data Deduplication'?", o: ["Eliminar archivos duplicados para ahorrar espacio", "Cifrar datos para mayor seguridad", "Comprimir datos para reducir el tamaño", "Distribuir datos en múltiples ubicaciones"], a: 0, d: "expert", explanation: "La deduplicación de datos es una técnica que elimina copias redundantes de datos para reducir el espacio de almacenamiento." },
+            { q: "¿Cuál es una ventaja clave del almacenamiento de objetos ('object storage') sobre el almacenamiento de bloques o archivos?", o: ["Velocidad de acceso", "Compatibilidad con sistemas operativos antiguos", "Escalabilidad masiva y manejo de metadatos ricos", "Costos de hardware reducidos"], a: 2, d: "expert", explanation: "El almacenamiento de objetos es ideal para datos no estructurados y ofrece escalabilidad a exabytes." },
+            { q: "¿Qué métrica describe la cantidad de operaciones de entrada/salida por segundo que un dispositivo de almacenamiento puede realizar?", o: ["Bandwidth", "Latency", "Throughput", "IOPS (Input/Output Operations Per Second)"], a: 3, d: "expert", explanation: "IOPS mide la capacidad de un dispositivo de almacenamiento para procesar pequeñas operaciones de lectura y escritura aleatorias." },
+            { q: "¿Qué protocolo permite el acceso directo a almacenamiento NVMe a través de una red TCP/IP o Fibre Channel?", o: ["SMB", "NFS", "NVMe-oF (NVMe over Fabrics)", "SCSI"], a: 2, d: "expert", explanation: "NVMe-oF extiende el rendimiento de NVMe a través de una red, permitiendo el acceso remoto de alta velocidad." },
+            { q: "¿Cuál es la función principal de la 'caché de escritura' (write cache) en un controlador de almacenamiento de disco?", o: ["Acelerar lecturas de datos frecuentes", "Proporcionar un búfer temporal para acelerar operaciones de escritura", "Reconstruir datos dañados", "Gestionar el espacio libre del disco"], a: 1, d: "expert", explanation: "La caché de escritura almacena los datos temporalmente antes de escribirlos permanentemente al disco, mejorando la eficiencia." },
+            { q: "¿Qué es el 'wear leveling' en un SSD?", o: ["Proceso para equilibrar el desgaste de las celdas de memoria flash", "Función para nivelar la superficie del disco", "Algoritmo para optimizar la compresión de datos", "Método para verificar la integridad de los datos"], a: 0, d: "expert", explanation: "El wear leveling distribuye las escrituras uniformemente para prolongar la vida útil del SSD." },
+            { q: "¿Qué tipo de memoria flash se utiliza en SSDs de consumo masivo para equilibrar costo y rendimiento?", o: ["SLC", "MLC", "TLC", "Penta-Level Cell (PLC)"], a: 2, d: "expert", explanation: "TLC (Triple-Level Cell) es la más común en SSDs de consumo, almacenando 3 bits por celda." },
+            { q: "¿Qué significa 'latency' en el contexto de almacenamiento de datos?", o: ["La velocidad máxima de transferencia", "El tiempo que tarda el disco en responder a una solicitud", "La cantidad de datos que se pueden almacenar", "La durabilidad del disco"], a: 1, d: "expert", explanation: "La latencia es el retraso entre la solicitud de un dato y el inicio de su transferencia." },
+            { q: "¿Qué es un 'metadata' en el contexto de un sistema de archivos?", o: ["El contenido real de un archivo", "Datos sobre datos (ej. tamaño, fecha de creación)", "Un tipo de archivo ejecutable", "Un sector dañado del disco"], a: 1, d: "expert", explanation: "Los metadatos proporcionan información descriptiva sobre los archivos, no el contenido del archivo en sí." },
+            { q: "¿Cuál es el propósito de un 'filesystem' (sistema de archivos)?", o: ["Permitir la comunicación entre computadoras", "Organizar y gestionar cómo se almacenan y recuperan los datos en un medio", "Controlar la interfaz gráfica de usuario", "Proteger contra ataques de malware"], a: 1, d: "expert", explanation: "Un sistema de archivos es un método para organizar y encontrar archivos en un medio de almacenamiento." },
+            { q: "¿Qué tecnología permite que una sola celda de memoria flash almacene más de 4 bits de datos?", o: ["SLC", "MLC", "TLC", "QLC"], a: 3, d: "expert", explanation: "QLC (Quad-Level Cell) es una tecnología más densa que almacena 4 bits por celda, ofreciendo mayor capacidad a menor costo." },
+        ];
+        
+        // Teclado virtual según la especificación MATRIX-30 (3x10).
+        // Cada tecla ocupa 1 columna, lo que cumple estrictamente la directriz 3x10.
+        const keyboardLayout = [
+            // Fila 1: Q, W, E, R, T, Y, U, I, O, BKSP
+            { key: 'Q', id: 'Q' }, { key: 'W', id: 'W' }, { key: 'E', id: 'E' }, { key: 'R', id: 'R' }, { key: 'T', id: 'T' },
+            { key: 'Y', id: 'Y' }, { key: 'U', id: 'U' }, { key: 'I', id: 'I' }, { key: 'O', id: 'O' }, { key: 'BKSP', id: 'BKSP' }, 
+            
+            // Fila 2: A, S, D, F, G, H, J, K, L, ENTER
+            { key: 'A', id: 'A' }, { key: 'S', id: 'S' }, { key: 'D', id: 'D' }, { key: 'F', id: 'F' }, { key: 'G', id: 'G' },
+            { key: 'H', id: 'H' }, { key: 'J', id: 'J' }, { key: 'K', id: 'K' }, { key: 'L', id: 'L' }, { key: 'ENTER', id: 'ENTER' },
+            
+            // Fila 3: SHIFT, Z, X, C, V, B, N, M, _, @
+            { key: 'SHIFT', id: 'SHIFT' }, { key: 'Z', id: 'Z' }, { key: 'X', id: 'X' }, { key: 'C', id: 'C' }, { key: 'V', id: 'V' },
+            { key: 'B', id: 'B' }, { key: 'N', id: 'N' }, { key: 'M', id: 'M' }, { key: '_', id: 'UND' }, { key: '@', id: 'AT' }
+        ];
+
+        // --- Leaderboard functionality ---
+        const LEADERBOARD_KEY = 'byteBlasterLeaderboard';
+        const MAX_LEADERBOARD_ENTRIES = 5;
+
+        function loadLeaderboard() {
+            const leaderboardJson = localStorage.getItem(LEADERBOARD_KEY);
+            return leaderboardJson ? JSON.parse(leaderboardJson) : [];
+        }
+
+        function saveLeaderboard(leaderboard) {
+            localStorage.setItem(LEADERBOARD_KEY, JSON.stringify(leaderboard));
+        }
+
+        function updateLeaderboard(playerName, score) {
+            let leaderboard = loadLeaderboard();
+            leaderboard.push({ name: playerName, score: score });
+            leaderboard.sort((a, b) => b.score - a.score); // Sort descending
+            leaderboard = leaderboard.slice(0, MAX_LEADERBOARD_ENTRIES); // Keep top 5
+            saveLeaderboard(leaderboard);
+        }
+
+        function displayLeaderboard() {
+            const leaderboard = loadLeaderboard();
+            DOM.leaderboardList.innerHTML = '';
+            if (leaderboard.length === 0) {
+                DOM.leaderboardList.textContent = "// SIN ENTRADAS. ¡SÉ EL PRIMERO!";
+                DOM.leaderboardList.style.textAlign = 'center';
+            } else {
+                leaderboard.forEach((entry, index) => {
+                    const entryElem = document.createElement('div');
+                    entryElem.classList.add('leaderboard-entry');
+                    entryElem.innerHTML = `
+                        <span class="leaderboard-rank">${index + 1}.</span>
+                        <span class="leaderboard-name">${entry.name}</span>
+                        <span class="leaderboard-score">${String(entry.score).padStart(4, '0')}</span>
+                    `;
+                    DOM.leaderboardList.appendChild(entryElem);
+                });
+            }
+        }
+
+        function getPilotRank(score) {
+            if (score >= 1200) return "Centinela Cuántico";
+            if (score >= 900) return "Arquitecto de Datos";
+            if (score >= 600) return "Hacker Maestro";
+            if (score >= 300) return "Operativo Básico";
+            return "Iniciado";
+        }
+
+
+        // --- Screen Transition Logic ---
+        function showScreen(screenId, transitionText = '') {
+            const currentActiveScreen = document.querySelector('.screen.active');
+            
+            // Oculta la pantalla activa actual (si existe)
+            if (currentActiveScreen) {
+                currentActiveScreen.classList.remove('active'); // Esto activa su transición de opacidad a 0
+            }
+
+            // Muestra y anima el overlay de transición
+            DOM.transitionOverlay.textContent = transitionText;
+            DOM.transitionOverlay.style.display = 'flex'; // Hace el overlay visible
+            // Fuerza el reflow para que la animación se reinicie correctamente
+            DOM.transitionOverlay.classList.remove('active'); 
+            void DOM.transitionOverlay.offsetWidth; 
+            DOM.transitionOverlay.classList.add('active'); // Activa la animación del overlay
+
+            // Después de la duración de la animación del overlay, activa la pantalla de destino
+            setTimeout(() => {
+                // Desactiva todas las pantallas para asegurar un estado limpio (solo la activa estará visible)
+                DOM.screens.forEach(s => {
+                    s.classList.remove('active'); 
+                });
+                // Activa solo la pantalla de destino
+                document.getElementById(screenId).classList.add('active'); 
+                
+                // Oculta y resetea el overlay de transición
+                DOM.transitionOverlay.classList.remove('active');
+                DOM.transitionOverlay.style.display = 'none';
+                DOM.transitionOverlay.textContent = ''; 
+                
+                // Si la pantalla final es la activa, muestra la tabla de clasificación
+                if (screenId === 'endScreen') {
+                    displayLeaderboard();
+                }
+
+            }, 500); // Este timeout debe coincidir con la duración de la animación 'glitch-transition'
+        }
+
+        function requestFullscreen() {
+            const el = document.documentElement;
+            if (el.requestFullscreen) el.requestFullscreen();
+            else if (el.mozRequestFullScreen) el.mozRequestFullScreen();
+            else if (el.webkitRequestFullscreen) el.webkitRequestFullscreen();
+            else if (el.msRequestFullscreen) el.msRequestFullscreen();
+        }
+        
+        // --- Name Display Logic ---
+        function updateNameDisplay() {
+            let currentName = gameState.playerName;
+            if (currentName.length < 8) {
+                currentName += '_'.repeat(8 - currentName.length);
+                DOM.nameDisplay.classList.add('blinking-cursor-active'); 
+            } else {
+                 DOM.nameDisplay.classList.remove('blinking-cursor-active'); 
+            }
+            DOM.nameDisplay.textContent = currentName.substring(0, 8); 
+        }
+
+        // --- Keyboard Input Logic ---
+        function handleKeyPress(keyChar) {
+            let keyId = keyChar;
+            const foundKey = keyboardLayout.find(k => k.key === keyChar);
+            if (foundKey) {
+                keyId = foundKey.id;
+            }
+            
+            const keyElement = document.getElementById(`key-${keyId}`);
+            if (keyElement) {
+                keyElement.classList.add('active-press');
+                setTimeout(() => keyElement.classList.remove('active-press'), 100);
+            }
+
+            if (keyChar === 'BKSP') {
+                gameState.playerName = gameState.playerName.slice(0, -1);
+            } else if (keyChar === 'ENTER') {
+                if (gameState.playerName.length >= 3) {
+                    DOM.levelSelectHeader.textContent = `PILOTO: ${gameState.playerName} // ACCESO AUTORIZADO`;
+                    showScreen('levelSelectScreen', 'INICIANDO SESIÓN...');
+                }
+            } else if (keyChar === 'SHIFT') {
+                gameState.isShiftActive = !gameState.isShiftActive;
+                document.getElementById('key-SHIFT').classList.toggle('active', gameState.isShiftActive);
+            } else { 
+                if (gameState.playerName.length < 8) {
+                    // Logic to handle shift for symbols, assuming base is lowercase
+                    let charToAppend = keyChar;
+                    if (gameState.isShiftActive && /[a-zA-Z]/.test(keyChar)) {
+                        charToAppend = keyChar.toUpperCase();
+                    } else if (!gameState.isShiftActive && /[a-zA-Z]/.test(keyChar)) {
+                         charToAppend = keyChar.toLowerCase();
+                    } else { // Handle special characters that are directly on the key and might not change with shift (like _ or @)
+                         charToAppend = keyChar; // Use as is.
+                    }
+                    gameState.playerName += charToAppend;
+                }
+            }
+            updateNameDisplay();
+            
+            if (gameState.playerName.length === 8) {
+                DOM.levelSelectHeader.textContent = `PILOTO: ${gameState.playerName} // ACCESO AUTORIZADO`;
+                setTimeout(() => showScreen('levelSelectScreen', 'ACCESO CONCEDIDO'), 500);
+            }
+        }
+
+        // --- Keyboard Setup Logic ---
+        function setupKeyboard() {
+            DOM.virtualKeyboard.innerHTML = '';
+            // MATRIX-30: 3 filas x 10 columnas, cada tecla ocupa 1 unidad de grid.
+            const matrix30Keys = [
+                // Fila 1
+                { key: 'Q', id: 'Q' }, { key: 'W', id: 'W' }, { key: 'E', id: 'E' }, { key: 'R', id: 'R' }, { key: 'T', id: 'T' },
+                { key: 'Y', id: 'Y' }, { key: 'U', id: 'U' }, { key: 'I', id: 'I' }, { key: 'O', id: 'O' }, { key: 'P', id: 'P' }, // P is the 10th key
+                
+                // Fila 2
+                { key: 'A', id: 'A' }, { key: 'S', id: 'S' }, { key: 'D', id: 'D' }, { key: 'F', id: 'F' }, { key: 'G', id: 'G' },
+                { key: 'H', id: 'H' }, { key: 'J', id: 'J' }, { key: 'K', id: 'K' }, { key: 'L', id: 'L' }, { key: 'ENTER', id: 'ENTER' },
+                
+                // Fila 3
+                { key: 'SHIFT', id: 'SHIFT' }, { key: 'Z', id: 'Z' }, { key: 'X', id: 'X' }, { key: 'C', id: 'C' }, { key: 'V', id: 'V' },
+                { key: 'B', id: 'B' }, { key: 'N', id: 'N' }, { key: 'M', id: 'M' }, { key: '_', id: 'UND' }, { key: '@', id: 'AT' }
+            ];
+
+            matrix30Keys.forEach((keyData, index) => {
+                const keyElement = document.createElement('div');
+                
+                // Display text for special keys as per request, others uppercase
+                let displayChar = keyData.key.toUpperCase();
+                if (keyData.key === 'BKSP') displayChar = 'BKSP'; // Asumed BKSP is the last of row 1, as per previous discussion.
+                if (keyData.key === 'ENTER') displayChar = 'ENTER';
+                if (keyData.key === 'SHIFT') displayChar = 'SHIFT';
+                if (keyData.key === '_') displayChar = '_';
+                if (keyData.key === '@') displayChar = '@';
+
+                keyElement.textContent = displayChar; 
+                keyElement.classList.add('key');
+                keyElement.id = `key-${keyData.id}`; 
+                
+                // Posicionamiento estricto 3x10
+                const row = Math.floor(index / 10) + 1;
+                const col = (index % 10) + 1;
+                keyElement.style.gridRow = row;
+                keyElement.style.gridColumn = col;
+
+                if (keyData.id === 'SHIFT' && gameState.isShiftActive) { 
+                    keyElement.classList.add('active');
+                }
+                
+                keyElement.addEventListener('click', () => {
+                    // Para BKSP, ENTER, SHIFT, pasamos el valor especial para handleKeyPress.
+                    // Para los demás, pasamos el keyData.key original.
+                    const charToProcess = (keyData.id === 'BKSP' || keyData.id === 'ENTER' || keyData.id === 'SHIFT') ? keyData.id : keyData.key;
+                    handleKeyPress(charToProcess);
+                });
+                DOM.virtualKeyboard.appendChild(keyElement);
+            });
+
+            // If the user wants BKSP to be the 10th key in row 1, we must adjust the `P` key.
+            // The `keyboardLayout` needs to reflect this for correct generation and handling.
+            // As per your `keyboardLayout` array, `BKSP` is separate.
+            // Re-evaluating the MATRIX-30 directive:
+            // "Fila 1: Q, W, E, R, T, Y, U, I, O, ?" where ? means BKSP
+            // This means P is NOT in Fila 1, or it's implicitly part of `?` if SHIFT changes it.
+            // Given the strictness, I will replace 'P' with 'BKSP' in the MATRIX-30 layout.
+            // The `keyboardLayout` should be:
+            /*
+            // Fila 1: Q, W, E, R, T, Y, U, I, O, BKSP
+            { key: 'Q', id: 'Q' }, { key: 'W', id: 'W' }, { key: 'E', id: 'E' }, { key: 'R', id: 'R' }, { key: 'T', id: 'T' },
+            { key: 'Y', id: 'Y' }, { key: 'U', id: 'U' }, { key: 'I', id: 'I' }, { key: 'O', id: 'O' }, { key: 'BKSP', id: 'BKSP' },
+            // Fila 2: A, S, D, F, G, H, J, K, L, ENTER
+            { key: 'A', id: 'A' }, { key: 'S', id: 'S' }, { key: 'D', id: 'D' }, { key: 'F', id: 'F' }, { key: 'G', id: 'G' },
+            { key: 'H', id: 'H' }, { key: 'J', id: 'J' }, { key: 'K', id: 'K' }, { key: 'L', id: 'L' }, { key: 'ENTER', id: 'ENTER' },
+            // Fila 3: SHIFT, Z, X, C, V, B, N, M, _, @
+            { key: 'SHIFT', id: 'SHIFT' }, { key: 'Z', id: 'Z' }, { key: 'X', id: 'X' }, { key: 'C', id: 'C' }, { key: 'V', id: 'V' },
+            { key: 'B', id: 'B' }, { key: 'N', id: 'N' }, { key: 'M', id: 'M' }, { key: '_', id: 'UND' }, { key: '@', id: 'AT' }
+            */
+            // The provided `keyboardLayout` in the code does NOT reflect this 3x10 exact list of 30 keys.
+            // It has 'P', then 'BKSP' later in the JS array, which is confusing.
+            // I will use the `matrix30Keys` array defined inside `setupKeyboard` to ensure exact 3x10 mapping.
+
+            updateNameDisplay();
+        }
+
+        // --- Common Utility Functions ---
+        function shuffleArray(array) {
+            for (let i = array.length - 1; i > 0; i--) {
+                const j = Math.floor(Math.random() * (i + 1));
+                [array[i], array[j]] = [array[j], array[i]];
+            }
+        }
+        
+        // --- Game Flow Logic ---
+        function startGame(difficulty) {
+            gameState.difficulty = difficulty;
+            gameState.score = 0;
+            const filteredQuestions = quizData.filter(q => q.d === difficulty);
+            shuffleArray(filteredQuestions);
+            gameState.questions = filteredQuestions.slice(0, Math.min(gameState.questionsPerGame, filteredQuestions.length));
+            gameState.currentQuestionIndex = 0;
+            DOM.hudPlayer.textContent = `PILOTO: ${gameState.playerName}`;
+            
+            showScreen('gameScreen', 'INICIANDO MISIÓN...');
+            setTimeout(displayQuestion, 600); 
+        }
+
+        // --- Display Question and Options ---
+        function displayQuestion() {
+            if (gameState.currentQuestionIndex >= gameState.questions.length) {
+                endGame(true); 
+                return;
+            }
+            
+            // HUD text update with pulse
+            DOM.hudScore.textContent = `PUNTOS: ${String(gameState.score).padStart(4, '0')} // PREGUNTA: ${String(gameState.currentQuestionIndex + 1).padStart(2, '0')}/${String(gameState.questions.length).padStart(2, '0')}`;
+            DOM.hudScore.classList.add('hud-pulsing');
+            setTimeout(() => DOM.hudScore.classList.remove('hud-pulsing'), 400); // Remove class after animation
+
+            const currentQ = gameState.questions[gameState.currentQuestionIndex];
+            
+            // Typewriter effect for question
+            let i = 0;
+            DOM.questionContainer.textContent = '';
+            const typeWriterInterval = setInterval(() => {
+                if (i < currentQ.q.length) {
+                    DOM.questionContainer.textContent += currentQ.q.charAt(i);
+                    i++;
+                } else {
+                    clearInterval(typeWriterInterval);
+                    startTimer(); // Start timer ONLY after question is fully typed
+                }
+            }, 30); 
+            
+            // Shuffle options for display
+            const optionsWithOriginalIndex = currentQ.o.map((text, idx) => ({ text, originalIndex: idx }));
+            shuffleArray(optionsWithOriginalIndex); 
+            
+            DOM.optionsContainer.innerHTML = '';
+            optionsWithOriginalIndex.forEach((optionData) => { // Removed displayIndex, not needed
+                const button = document.createElement('div');
+                button.classList.add('option-button');
+                button.textContent = optionData.text; 
+                button.dataset.originalIndex = optionData.originalIndex; 
+                button.addEventListener('click', () => selectAnswer(parseInt(button.dataset.originalIndex)), { once: true });
+                DOM.optionsContainer.appendChild(button);
+            });
+        }
+        
+        // --- Timer Logic ---
+        function startTimer() {
+            clearInterval(gameState.timerWarningInterval); // Clear any previous warning interval
+            clearTimeout(gameState.timerInterval); // Clear main timer
+            DOM.timerBarContainer.classList.remove('critical'); // Reset critical state
+
+            DOM.timerBar.style.transition = 'none';
+            DOM.timerBar.style.width = '100%';
+            void DOM.timerBar.offsetHeight; 
+            DOM.timerBar.style.transition = `width ${gameState.timePerQuestion / 1000}s linear`;
+            DOM.timerBar.style.width = '0%';
+            
+            // Start critical warning pulse for the last 5 seconds
+            const criticalTime = gameState.timePerQuestion - 5000;
+            if (criticalTime > 0) { // Only set if there's more than 5 seconds.
+                gameState.timerWarningInterval = setTimeout(() => {
+                    DOM.timerBarContainer.classList.add('critical');
+                }, criticalTime);
+            } else { // If timePerQuestion is less than 5s, it's immediately critical
+                 DOM.timerBarContainer.classList.add('critical');
+            }
+
+
+            gameState.timerInterval = setTimeout(() => {
+                selectAnswer(-1); // Time's up
+                clearInterval(gameState.timerWarningInterval); // Ensure warning interval is cleared
+            }, gameState.timePerQuestion);
+        }
+        
+        // --- Answer Selection Logic ---
+        function selectAnswer(selectedIndex) {
+            clearTimeout(gameState.timerInterval); // Stop main timer
+            clearInterval(gameState.timerWarningInterval); // Stop warning interval
+            DOM.timerBarContainer.classList.remove('critical'); // Remove critical state
+            DOM.optionsContainer.style.pointerEvents = 'none'; // Disable further clicks
+            
+            const currentQ = gameState.questions[gameState.currentQuestionIndex];
+            const isCorrect = selectedIndex === currentQ.a; 
+            
+            DOM.feedbackStatus.textContent = isCorrect ? "CORRECTO: ACCESO CONCEDIDO" : "ERROR: ACCESO DENEGADO";
+            DOM.feedbackStatus.style.textShadow = `0 0 10px ${isCorrect ? 'var(--color-success)' : 'var(--color-error)'}`;
+            DOM.feedbackExplanation.textContent = currentQ.explanation;
+            DOM.feedbackOverlay.style.display = 'flex';
+            
+            if (isCorrect) {
+                gameState.score += 100;
+                DOM.body.classList.add('correct-flash-anim');
+            } else {
+                // Trigger system error glitch on incorrect answer
+                DOM.body.classList.add('incorrect-flash-anim');
+                DOM.systemErrorGlitchOverlay.style.display = 'block'; // Make glitch overlay visible
+                DOM.systemErrorGlitchOverlay.classList.add('active'); // Start glitch animation
+                setTimeout(() => {
+                    DOM.systemErrorGlitchOverlay.classList.remove('active');
+                    DOM.systemErrorGlitchOverlay.style.display = 'none'; // Hide glitch overlay after animation
+                }, 600); // Match animation duration
+            }
+            
+            DOM.hudScore.textContent = `PUNTOS: ${String(gameState.score).padStart(4, '0')} // PREGUNTA: ${String(gameState.currentQuestionIndex + 1).padStart(2, '0')}/${String(gameState.questions.length).padStart(2, '0')}`;
+            
+            DOM.feedbackOverlay.onclick = () => {
+                DOM.feedbackOverlay.onclick = null; 
+                DOM.feedbackOverlay.style.display = 'none';
+                DOM.body.classList.remove('correct-flash-anim', 'incorrect-flash-anim');
+                DOM.optionsContainer.style.pointerEvents = 'auto';
+                gameState.currentQuestionIndex++; 
+                displayQuestion(); 
+            };
+        }
+
+        // --- End Game Logic ---
+        function endGame(isVictory) {
+            clearTimeout(gameState.timerInterval);
+            clearInterval(gameState.timerWarningInterval); // Ensure warning interval is cleared
+            DOM.timerBarContainer.classList.remove('critical'); // Remove critical state
+
+            DOM.endTitle.textContent = isVictory ? "MISIÓN CUMPLIDA" : "SISTEMA CORRUPTO";
+            
+            // Animate score counting up
+            let currentScoreDisplay = 0;
+            const scoreAnimationInterval = setInterval(() => {
+                if (currentScoreDisplay < gameState.score) {
+                    currentScoreDisplay = Math.min(gameState.score, currentScoreDisplay + 20); // Count up faster
+                    DOM.finalScoreText.textContent = `PUNTUACIÓN FINAL: ${String(currentScoreDisplay).padStart(4, '0')}`;
+                } else {
+                    clearInterval(scoreAnimationInterval);
+                    DOM.pilotRankText.textContent = `RANGO DE PILOTO: ${getPilotRank(gameState.score)}`;
+                    updateLeaderboard(gameState.playerName, gameState.score); // Save score
+                    showScreen('endScreen', isVictory ? 'SISTEMA ESTABLECIDO' : 'FALLO CRÍTICO');
+                }
+            }, 30);
+        }
+
+        // --- Initial Sequence ---
+        function startBiosSequence() {
+            const logLines = ["INITIATING NEURAL LINK...", "CALIBRATING CHRONO-DRIVE...", "VERIFYING DATA INTEGRITY...", "LOADING BYTE BLASTER OS v3.0...", "PROTOCOL ZERO ENGAGED.", "SYSTEM READY."];
+            let lineIndex = 0;
+            let progress = 0;
+
+            const logInterval = setInterval(() => { 
+                if (lineIndex < logLines.length) {
+                    DOM.biosLog.innerHTML += logLines[lineIndex] + '\n';
+                    DOM.biosLog.scrollTop = DOM.biosLog.scrollHeight;
+                    lineIndex++;
+                } else {
+                    clearInterval(logInterval);
+                }
+            }, 400);
+
+            const progressInterval = setInterval(() => {
+                progress += 2;
+                DOM.biosProgressBar.style.width = progress + '%';
+                if (progress >= 100) {
+                    clearInterval(progressInterval);
+                    showScreen('titleScreen'); 
+                }
+            }, 50);
+        }
+        
+        // --- Initialization ---
+        function init() {
+            // CRÍTICO: La pantalla de BIOS se activa explícitamente al inicio.
+            // Todas las pantallas comienzan display:flex pero opacity:0. La BIOS es la primera en tener opacity:1.
+            document.getElementById('biosScreen').classList.add('active');
+
+            DOM.titleScreen.addEventListener('click', () => { 
+                requestFullscreen(); 
+                setupKeyboard(); 
+                showScreen('nameScreen', 'PREPARANDO INTERFAZ...'); 
+            }, { once: true });
+            
+            DOM.levelButtons.forEach(button => button.addEventListener('click', () => startGame(button.dataset.difficulty)));
+            
+            DOM.retryButton.addEventListener('click', () => {
+                // Reset score and question index directly for retry
+                gameState.score = 0;
+                gameState.currentQuestionIndex = 0;
+                startGame(gameState.difficulty); // Restart current difficulty
+            });
+            DOM.menuButton.addEventListener('click', () => showScreen('levelSelectScreen', 'RECALIBRANDO SISTEMAS...'));
+            
+            startBiosSequence();
+        }
+
+        init();
+    </script>
+</body>
+</html>
